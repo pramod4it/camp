@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: camp-db-secret
+  namespace: camp
+type: Opaque
+stringData:
+  MYSQL_USER: app
+  MYSQL_PASSWORD: app
+  MYSQL_ROOT_PASSWORD: root
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: camp-config
+  namespace: camp
+data:
+  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  SPRING_DATA_REDIS_HOST: redis
+  SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
+  LOGSTASH_HOST: logstash
+  CAMP_JWT_SECRET: camp-development-secret-key-32-chars

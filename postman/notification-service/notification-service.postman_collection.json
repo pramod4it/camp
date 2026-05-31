@@ -1,0 +1,25 @@
+{
+  "info": {
+    "name": "notification-service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "List Notifications",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-Correlation-Id", "value": "{{correlation_id}}" }
+        ],
+        "url": "{{gateway_url}}/api/v1/notifications"
+      }
+    },
+    {
+      "name": "Swagger UI",
+      "request": {
+        "method": "GET",
+        "url": "{{notification_service_url}}/swagger-ui.html"
+      }
+    }
+  ]
+}

@@ -1,0 +1,328 @@
+services:
+  user-mysql:
+    image: mysql:8.4
+    container_name: user-mysql
+    environment:
+      MYSQL_DATABASE: userdb
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3307:3306"
+    volumes:
+      - user_mysql_data:/var/lib/mysql
+
+  order-mysql:
+    image: mysql:8.4
+    container_name: order-mysql
+    environment:
+      MYSQL_DATABASE: orderdb
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3312:3306"
+    volumes:
+      - order_mysql_data:/var/lib/mysql
+
+  payment-mysql:
+    image: mysql:8.4
+    container_name: payment-mysql
+    environment:
+      MYSQL_DATABASE: paymentdb
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3309:3306"
+    volumes:
+      - payment_mysql_data:/var/lib/mysql
+
+  notification-mysql:
+    image: mysql:8.4
+    container_name: notification-mysql
+    environment:
+      MYSQL_DATABASE: notificationdb
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3310:3306"
+    volumes:
+      - notification_mysql_data:/var/lib/mysql
+
+  inventory-mysql:
+    image: mysql:8.4
+    container_name: inventory-mysql
+    environment:
+      MYSQL_DATABASE: inventorydb
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3311:3306"
+    volumes:
+      - inventory_mysql_data:/var/lib/mysql
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: microservices-redis
+    ports:
+      - "16379:6379"
+
+  kafka:
+    image: redpandadata/redpanda:v24.3.7
+    container_name: microservices-kafka
+    ports:
+      - "19092:9092"
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp=1
+      - --memory=512M
+      - --reserve-memory=0M
+      - --node-id=0
+      - --unsafe-bypass-fsync=true
+      - --kafka-addr=internal://0.0.0.0:29092,external://0.0.0.0:9092
+      - --advertise-kafka-addr=internal://kafka:29092,external://localhost:19092
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: microservices-elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "19200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+  logstash:
+    profiles: ["observability"]
+    image: docker.elastic.co/logstash/logstash:8.15.3
+    container_name: microservices-logstash
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./observability/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    depends_on:
+      - elasticsearch
+
+  kibana:
+    profiles: ["observability"]
+    image: docker.elastic.co/kibana/kibana:8.15.3
+    container_name: microservices-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+
+  prometheus:
+    profiles: ["observability"]
+    image: prom/prometheus:v2.55.1
+    container_name: microservices-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    profiles: ["observability"]
+    image: grafana/grafana:11.3.0
+    container_name: microservices-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+  config-server:
+    profiles: ["apps"]
+    build:
+      context: .
+      args:
+        SERVICE: config-server
+    image: camp/config-server:latest
+    ports:
+      - "18888:8888"
+    environment:
+      LOGSTASH_HOST: logstash
+
+  discovery-server:
+    profiles: ["apps"]
+    build:
+      context: .
+      args:
+        SERVICE: discovery-server
+    image: camp/discovery-server:latest
+    ports:
+      - "8761:8761"
+    environment:
+      LOGSTASH_HOST: logstash
+    depends_on:
+      - config-server
+
+  auth-service:
+    profiles: ["apps"]
+    build:
+      context: .
+      args:
+        SERVICE: auth-service
+    image: camp/auth-service:latest
+    ports:
+      - "8087:8087"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      CAMP_JWT_SECRET: camp-development-secret-key-32-chars
+      LOGSTASH_HOST: logstash
+    depends_on:
+      - discovery-server
+
+  api-gateway:
+    profiles: ["apps"]
+    build:
+      context: .
+      args:
+        SERVICE: api-gateway
+    image: camp/api-gateway:latest
+    ports:
+      - "8080:8080"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      CAMP_JWT_SECRET: camp-development-secret-key-32-chars
+      LOGSTASH_HOST: logstash
+    depends_on:
+      - discovery-server
+      - auth-service
+
+  user-service:
+    profiles: ["apps"]
+    build:
+      context: .
+      args:
+        SERVICE: user-service
+    image: camp/user-service:latest
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://user-mysql:3306/userdb
+      SPRING_DATA_REDIS_HOST: redis
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      CAMP_JWT_SECRET: camp-development-secret-key-32-chars
+      LOGSTASH_HOST: logstash
+    depends_on:
+      - user-mysql
+      - redis
+      - discovery-server
+
+  inventory-service:
+    profiles: ["apps"]
+    build:
+      context: .
+      args:
+        SERVICE: inventory-service
+    image: camp/inventory-service:latest
+    ports:
+      - "8086:8086"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://inventory-mysql:3306/inventorydb
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      LOGSTASH_HOST: logstash
+    depends_on:
+      - inventory-mysql
+      - kafka
+      - discovery-server
+
+  order-service:
+    profiles: ["apps"]
+    build:
+      context: .
+      args:
+        SERVICE: order-service
+    image: camp/order-service:latest
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://order-mysql:3306/orderdb
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      LOGSTASH_HOST: logstash
+    depends_on:
+      - order-mysql
+      - kafka
+      - discovery-server
+      - user-service
+
+  payment-service:
+    profiles: ["apps"]
+    build:
+      context: .
+      args:
+        SERVICE: payment-service
+    image: camp/payment-service:latest
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://payment-mysql:3306/paymentdb
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      LOGSTASH_HOST: logstash
+    depends_on:
+      - payment-mysql
+      - kafka
+      - discovery-server
+
+  notification-service:
+    profiles: ["apps"]
+    build:
+      context: .
+      args:
+        SERVICE: notification-service
+    image: camp/notification-service:latest
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://notification-mysql:3306/notificationdb
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      LOGSTASH_HOST: logstash
+    depends_on:
+      - notification-mysql
+      - kafka
+      - discovery-server
+
+  search-service:
+    profiles: ["apps"]
+    build:
+      context: .
+      args:
+        SERVICE: search-service
+    image: camp/search-service:latest
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      LOGSTASH_HOST: logstash
+    depends_on:
+      - elasticsearch
+      - kafka
+      - discovery-server
+
+volumes:
+  user_mysql_data:
+  order_mysql_data:
+  payment_mysql_data:
+  notification_mysql_data:
+  inventory_mysql_data:
+  kafka_data:
+  elasticsearch_data:
+  grafana_data:

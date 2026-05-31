@@ -1,0 +1,434 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-mysql
+  namespace: camp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-mysql
+  template:
+    metadata:
+      labels:
+        app: user-mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.4
+          args:
+            - --innodb-use-native-aio=0
+          ports:
+            - containerPort: 3306
+          envFrom:
+            - secretRef:
+                name: camp-db-secret
+          env:
+            - name: MYSQL_DATABASE
+              value: userdb
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-mysql
+  namespace: camp
+spec:
+  selector:
+    app: user-mysql
+  ports:
+    - port: 3306
+      targetPort: 3306
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-mysql
+  namespace: camp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-mysql
+  template:
+    metadata:
+      labels:
+        app: order-mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.4
+          args:
+            - --innodb-use-native-aio=0
+          ports:
+            - containerPort: 3306
+          envFrom:
+            - secretRef:
+                name: camp-db-secret
+          env:
+            - name: MYSQL_DATABASE
+              value: orderdb
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-mysql
+  namespace: camp
+spec:
+  selector:
+    app: order-mysql
+  ports:
+    - port: 3306
+      targetPort: 3306
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-mysql
+  namespace: camp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment-mysql
+  template:
+    metadata:
+      labels:
+        app: payment-mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.4
+          args:
+            - --innodb-use-native-aio=0
+          ports:
+            - containerPort: 3306
+          envFrom:
+            - secretRef:
+                name: camp-db-secret
+          env:
+            - name: MYSQL_DATABASE
+              value: paymentdb
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-mysql
+  namespace: camp
+spec:
+  selector:
+    app: payment-mysql
+  ports:
+    - port: 3306
+      targetPort: 3306
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-mysql
+  namespace: camp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-mysql
+  template:
+    metadata:
+      labels:
+        app: notification-mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.4
+          args:
+            - --innodb-use-native-aio=0
+          ports:
+            - containerPort: 3306
+          envFrom:
+            - secretRef:
+                name: camp-db-secret
+          env:
+            - name: MYSQL_DATABASE
+              value: notificationdb
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-mysql
+  namespace: camp
+spec:
+  selector:
+    app: notification-mysql
+  ports:
+    - port: 3306
+      targetPort: 3306
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-mysql
+  namespace: camp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventory-mysql
+  template:
+    metadata:
+      labels:
+        app: inventory-mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.4
+          args:
+            - --innodb-use-native-aio=0
+          ports:
+            - containerPort: 3306
+          envFrom:
+            - secretRef:
+                name: camp-db-secret
+          env:
+            - name: MYSQL_DATABASE
+              value: inventorydb
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-mysql
+  namespace: camp
+spec:
+  selector:
+    app: inventory-mysql
+  ports:
+    - port: 3306
+      targetPort: 3306
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: camp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.4-alpine
+          ports:
+            - containerPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: camp
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka
+  namespace: camp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      containers:
+        - name: kafka
+          image: redpandadata/redpanda:v24.3.7
+          ports:
+            - containerPort: 9092
+          command:
+            - /usr/bin/rpk
+            - redpanda
+            - start
+            - --overprovisioned
+            - --smp=1
+            - --memory=512M
+            - --reserve-memory=0M
+            - --node-id=0
+            - --unsafe-bypass-fsync=true
+            - --kafka-addr=internal://0.0.0.0:9092
+            - --advertise-kafka-addr=internal://kafka:9092
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: camp
+spec:
+  selector:
+    app: kafka
+  ports:
+    - name: broker
+      port: 9092
+      targetPort: 9092
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch
+  namespace: camp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      containers:
+        - name: elasticsearch
+          image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+          ports:
+            - containerPort: 9200
+          env:
+            - name: discovery.type
+              value: single-node
+            - name: xpack.security.enabled
+              value: "false"
+            - name: ES_JAVA_OPTS
+              value: -Xms512m -Xmx512m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: camp
+spec:
+  selector:
+    app: elasticsearch
+  ports:
+    - port: 9200
+      targetPort: 9200
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-pipeline
+  namespace: camp
+data:
+  logstash.conf: |
+    input {
+      tcp {
+        port => 5000
+        codec => json
+      }
+    }
+
+    filter {
+      if ![service_name] {
+        mutate { add_field => { "service_name" => "unknown-service" } }
+      }
+      mutate {
+        lowercase => [ "service_name" ]
+        gsub => [ "service_name", "[^a-z0-9_-]", "-" ]
+      }
+    }
+
+    output {
+      elasticsearch {
+        hosts => [ "http://elasticsearch:9200" ]
+        index => "camp-%{service_name}-%{+YYYY.MM.dd}"
+      }
+      stdout { codec => rubydebug }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logstash
+  namespace: camp
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: logstash
+  template:
+    metadata:
+      labels:
+        app: logstash
+    spec:
+      containers:
+        - name: logstash
+          image: docker.elastic.co/logstash/logstash:8.15.3
+          ports:
+            - containerPort: 5000
+          volumeMounts:
+            - name: pipeline
+              mountPath: /usr/share/logstash/pipeline/logstash.conf
+              subPath: logstash.conf
+      volumes:
+        - name: pipeline
+          configMap:
+            name: logstash-pipeline
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: logstash
+  namespace: camp
+spec:
+  selector:
+    app: logstash
+  ports:
+    - port: 5000
+      targetPort: 5000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  namespace: camp
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+    spec:
+      containers:
+        - name: kibana
+          image: docker.elastic.co/kibana/kibana:8.15.3
+          ports:
+            - containerPort: 5601
+          env:
+            - name: ELASTICSEARCH_HOSTS
+              value: http://elasticsearch:9200
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana
+  namespace: camp
+spec:
+  type: NodePort
+  selector:
+    app: kibana
+  ports:
+    - port: 5601
+      targetPort: 5601
+      nodePort: 30601

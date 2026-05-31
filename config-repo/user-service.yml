@@ -1,0 +1,12 @@
+server:
+  port: 8081
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3307/userdb
+    username: app
+    password: app
+  data:
+    redis:
+      host: localhost
+      port: 6379

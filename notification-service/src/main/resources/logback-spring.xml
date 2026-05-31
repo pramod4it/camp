@@ -1,0 +1,7 @@
+<configuration>
+    <springProperty scope="context" name="serviceName" source="spring.application.name" defaultValue="notification-service"/>
+    <property name="LOGSTASH_HOST" value="${LOGSTASH_HOST:-localhost}"/>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender"><encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder"><providers><timestamp fieldName="@timestamp"/><pattern><pattern>{"service_name":"${serviceName}","level":"%level","thread":"%thread","logger":"%logger","message":"%message","correlation_id":"%X{correlation_id}","event_type":"%X{event_type}","topic":"%X{topic}","order_id":"%X{order_id}","user_id":"%X{user_id}","http_method":"%X{http_method}","http_path":"%X{http_path}"}</pattern></pattern><stackTrace/></providers></encoder></appender>
+    <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender"><destination>${LOGSTASH_HOST}:5000</destination><encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder"><providers><timestamp fieldName="@timestamp"/><pattern><pattern>{"service_name":"${serviceName}","level":"%level","thread":"%thread","logger":"%logger","message":"%message","correlation_id":"%X{correlation_id}","event_type":"%X{event_type}","topic":"%X{topic}","order_id":"%X{order_id}","user_id":"%X{user_id}","http_method":"%X{http_method}","http_path":"%X{http_path}"}</pattern></pattern><stackTrace/></providers></encoder></appender>
+    <root level="INFO"><appender-ref ref="CONSOLE"/><appender-ref ref="LOGSTASH"/></root>
+</configuration>

@@ -1,0 +1,59 @@
+### Create user
+POST http://localhost:8080/api/v1/users
+Content-Type: application/json
+
+{
+  "name": "Pramod Singh",
+  "email": "pramod@example.com"
+}
+
+### List users
+GET http://localhost:8080/api/v1/users
+
+### List inventory
+GET http://localhost:8080/api/v1/inventory
+
+### Create approved order
+POST http://localhost:8080/api/v1/orders
+Content-Type: application/json
+
+{
+  "userId": 1,
+  "productId": 1001,
+  "quantity": 1,
+  "amount": 2500.00
+}
+
+### Create declined order
+POST http://localhost:8080/api/v1/orders
+Content-Type: application/json
+
+{
+  "userId": 1,
+  "productId": 1001,
+  "quantity": 1,
+  "amount": 7000.00
+}
+
+### Create order with inventory rejection
+POST http://localhost:8080/api/v1/orders
+Content-Type: application/json
+
+{
+  "userId": 1,
+  "productId": 1002,
+  "quantity": 999,
+  "amount": 1200.00
+}
+
+### List orders
+GET http://localhost:8080/api/v1/orders
+
+### List payments
+GET http://localhost:8080/api/v1/payments
+
+### List notifications
+GET http://localhost:8080/api/v1/notifications
+
+### Search indexed orders
+GET http://localhost:8080/api/v1/search/orders
