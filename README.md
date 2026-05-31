@@ -26,37 +26,45 @@ The system is organized as independently deployable Spring Boot services. Extern
 ```mermaid
 flowchart TB
     Client["Client / Postman / Swagger UI"]
-    Gateway["API Gateway<br/>Spring Cloud Gateway + JWT/RBAC"]
-    Auth["Auth Service<br/>OAuth2-style JWT issuer"]
-    Config["Config Server"]
-    Eureka["Discovery Server<br/>Eureka"]
 
-    User["User Service"]
-    Inventory["Inventory Service"]
-    Order["Order Service"]
-    Payment["Payment Service"]
-    Notification["Notification Service"]
-    Search["Search Service"]
+    subgraph Edge["Edge Layer"]
+        Gateway["API Gateway"]
+        Auth["Auth Service"]
+    end
 
-    UserDb[("userdb<br/>MySQL")]
-    InventoryDb[("inventorydb<br/>MySQL")]
-    OrderDb[("orderdb<br/>MySQL + outbox")]
-    PaymentDb[("paymentdb<br/>MySQL + outbox")]
-    NotificationDb[("notificationdb<br/>MySQL")]
-    Redis[("Redis")]
-    Kafka[("Kafka-compatible broker<br/>Redpanda/Kafka topics")]
-    Elastic[("Elasticsearch<br/>orders index + log indexes")]
-    Logstash["Logstash"]
+    subgraph Platform["Platform Layer"]
+        Config["Config Server"]
+        Eureka["Discovery Server"]
+    end
+
+    subgraph Domain["Domain Services"]
+        User["User Service"]
+        Inventory["Inventory Service"]
+        Order["Order Service"]
+        Payment["Payment Service"]
+        Notification["Notification Service"]
+        Search["Search Service"]
+    end
+
+    subgraph Data["Data Stores"]
+        UserDb[("userdb")]
+        InventoryDb[("inventorydb")]
+        OrderDb[("orderdb")]
+        PaymentDb[("paymentdb")]
+        NotificationDb[("notificationdb")]
+        Redis[("Redis")]
+        Kafka[("Kafka / Redpanda")]
+        Elastic[("Elasticsearch")]
+        Logstash["Logstash"]
+    end
 
     Client --> Gateway
     Client --> Auth
-    Gateway --> Auth
-    Gateway --> User
-    Gateway --> Inventory
-    Gateway --> Order
-    Gateway --> Payment
-    Gateway --> Notification
-    Gateway --> Search
+    Gateway --> Domain
+    Auth --> Gateway
+    Domain --> Platform
+    Config --> Domain
+    Eureka --> Gateway
 
     User --> UserDb
     User --> Redis
@@ -66,32 +74,16 @@ flowchart TB
     Notification --> NotificationDb
     Search --> Elastic
 
-    Order -->|"OpenFeign HTTP user validation"| User
+    Order --> User
     Order --> Kafka
     Inventory --> Kafka
     Payment --> Kafka
     Notification --> Kafka
     Search --> Kafka
-    Order -->|"service Bearer JWT"| User
 
-    User -.register/config.-> Eureka
-    Inventory -.register/config.-> Eureka
-    Order -.register/config.-> Eureka
-    Payment -.register/config.-> Eureka
-    Notification -.register/config.-> Eureka
-    Search -.register/config.-> Eureka
-    Gateway -.register/config.-> Eureka
-    Auth -.register/config.-> Eureka
-    Config -.config source.-> Gateway
-
-    Gateway -.JSON logs.-> Logstash
-    Auth -.JSON logs.-> Logstash
-    User -.JSON logs.-> Logstash
-    Inventory -.JSON logs.-> Logstash
-    Order -.JSON logs.-> Logstash
-    Payment -.JSON logs.-> Logstash
-    Notification -.JSON logs.-> Logstash
-    Search -.JSON logs.-> Logstash
+    Domain --> Logstash
+    Gateway --> Logstash
+    Auth --> Logstash
     Logstash --> Elastic
 ```
 
@@ -286,7 +278,7 @@ Kubernetes manifests are under `k8s/` and deploy into the `camp` namespace.
 ```mermaid
 flowchart TB
     Client["Client"]
-    NodePort["api-gateway Service<br/>NodePort 30080"]
+    NodePort["api-gateway Service - NodePort 30080"]
 
     subgraph K8s["Kubernetes namespace: camp"]
         GatewayPod["api-gateway Deployment"]
@@ -416,9 +408,9 @@ The project now implements a lightweight OAuth2-style security model suitable fo
 ```mermaid
 flowchart LR
     Client["Client"]
-    Auth["Auth Service<br/>token issuer"]
-    Gateway["API Gateway<br/>JWT validation + RBAC"]
-    Services["Microservices<br/>receive identity headers"]
+    Auth["Auth Service - token issuer"]
+    Gateway["API Gateway - JWT validation + RBAC"]
+    Services["Microservices - receive identity headers"]
     Datastores["Datastores"]
 
     Client -->|"OAuth2-style token request"| Auth
@@ -433,9 +425,9 @@ flowchart LR
 ```mermaid
 flowchart LR
     Client["Client"]
-    Auth["auth-service or external IdP<br/>OAuth 2.0 / OIDC"]
-    Gateway["API Gateway<br/>JWT validation + scopes"]
-    Services["Microservices<br/>method-level RBAC"]
+    Auth["auth-service or external IdP - OAuth 2.0 / OIDC"]
+    Gateway["API Gateway - JWT validation + scopes"]
+    Services["Microservices - method-level RBAC"]
     TokenStore["Refresh token store"]
 
     Client --> Auth
