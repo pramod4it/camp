@@ -23,7 +23,7 @@
 
 The system is organized as independently deployable Spring Boot services. External clients enter through the API Gateway. Services use Eureka for discovery, Config Server for externalized configuration, MySQL for transactional data, Redis for user-service caching, Kafka-compatible Redpanda/Kafka for asynchronous domain events, and Elasticsearch for search and central log indexing.
 
-```mermaid
+```text
 flowchart TB
     Client["Client / Postman / Swagger UI"]
     Gateway["API Gateway"]
@@ -86,7 +86,7 @@ flowchart TB
 
 ## High-Level Architecture
 
-```mermaid
+```text
 flowchart LR
     Client["External Client"]
     Auth["Auth Service"]
@@ -161,7 +161,7 @@ Dead-letter topics use the `.DLT` suffix, for example `order-created.DLT`.
 
 The order workflow uses Saga choreography. There is no central Saga orchestrator. Each service reacts to events and publishes the next event.
 
-```mermaid
+```text
 flowchart TD
     A["Client posts order with Bearer JWT"] --> B["API Gateway routes to order-service"]
     B --> C["order-service validates user by OpenFeign with service JWT"]
@@ -181,7 +181,7 @@ flowchart TD
 
 Compensation flow:
 
-```mermaid
+```text
 flowchart TD
     A["Kafka topic: order-created"] --> B["inventory-service tries to reserve stock"]
     B --> C{"Stock available?"}
@@ -204,7 +204,7 @@ flowchart TD
 
 Docker Compose runs all infrastructure and application containers on a local Docker network. Host ports are adjusted to avoid conflicts with other local projects.
 
-```mermaid
+```text
 flowchart TB
     Host["Windows Host"]
     Gateway["api-gateway:8080"]
@@ -251,7 +251,7 @@ Important Docker host ports:
 
 Kubernetes manifests are under `k8s/` and deploy into the `camp` namespace.
 
-```mermaid
+```text
 flowchart TB
     Client["Client"]
     NodePort["api-gateway Service - NodePort 30080"]
@@ -287,7 +287,7 @@ For local Docker Desktop Kubernetes, the application image tag is `camp/<service
 
 Each microservice owns its database. Cross-service references such as `user_id`, `order_id`, and `product_id` are logical references, not cross-database foreign keys.
 
-```mermaid
+```text
 erDiagram
     USERS {
         BIGINT id PK
@@ -388,7 +388,7 @@ The project now implements a lightweight OAuth2-style security model suitable fo
 
 ### Current Security Boundary
 
-```mermaid
+```text
 flowchart LR
     Client["Client"]
     Auth["Auth Service - token issuer"]
@@ -405,7 +405,7 @@ flowchart LR
 
 ### Recommended Future Security Hardening
 
-```mermaid
+```text
 flowchart LR
     Client["Client"]
     Auth["auth-service or external IdP - OAuth 2.0 / OIDC"]
@@ -716,7 +716,7 @@ D:\camp\docs\observability-logging.md
 
 ### Create User
 
-```mermaid
+```text
 flowchart LR
     A["Client POST /api/v1/users"] --> B["API Gateway"]
     B --> C["user-service"]
@@ -729,7 +729,7 @@ flowchart LR
 
 ### Create Order
 
-```mermaid
+```text
 flowchart LR
     A["Client POST /api/v1/orders"] --> B["API Gateway"]
     B --> C["order-service"]
@@ -745,7 +745,7 @@ flowchart LR
 
 ### Inventory Reservation
 
-```mermaid
+```text
 flowchart TD
     A["Kafka: OrderCreatedEvent"] --> B["inventory-service"]
     B --> C[("Load inventory item")]
@@ -757,7 +757,7 @@ flowchart TD
 
 ### Payment And Notification
 
-```mermaid
+```text
 flowchart TD
     A["Kafka: InventoryReservedEvent"] --> B["payment-service"]
     B --> C[("paymentdb store payment")]
@@ -771,7 +771,7 @@ flowchart TD
 
 ### Correlation ID Propagation
 
-```mermaid
+```text
 flowchart LR
     A["Client request"] --> B["Gateway reads or creates X-Correlation-Id"]
     B --> C["Service receives X-Correlation-Id"]
