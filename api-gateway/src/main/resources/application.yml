@@ -82,7 +82,11 @@ spring:
 
 springdoc:
   swagger-ui:
+    disable-swagger-default-url: true
+    urls-primary-name: api-gateway
     urls:
+      - name: api-gateway
+        url: /v3/api-docs
       - name: auth-service
         url: /v3/api-docs/auth-service
       - name: user-service
