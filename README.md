@@ -26,44 +26,36 @@ The system is organized as independently deployable Spring Boot services. Extern
 ```mermaid
 flowchart TB
     Client["Client / Postman / Swagger UI"]
-
-    subgraph Edge["Edge Layer"]
-        Gateway["API Gateway"]
-        Auth["Auth Service"]
-    end
-
-    subgraph Platform["Platform Layer"]
-        Config["Config Server"]
-        Eureka["Discovery Server"]
-    end
-
-    subgraph Domain["Domain Services"]
-        User["User Service"]
-        Inventory["Inventory Service"]
-        Order["Order Service"]
-        Payment["Payment Service"]
-        Notification["Notification Service"]
-        Search["Search Service"]
-    end
-
-    subgraph Data["Data Stores"]
-        UserDb[("userdb")]
-        InventoryDb[("inventorydb")]
-        OrderDb[("orderdb")]
-        PaymentDb[("paymentdb")]
-        NotificationDb[("notificationdb")]
-        Redis[("Redis")]
-        Kafka[("Kafka / Redpanda")]
-        Elastic[("Elasticsearch")]
-        Logstash["Logstash"]
-    end
+    Gateway["API Gateway"]
+    Auth["Auth Service"]
+    Config["Config Server"]
+    Eureka["Discovery Server"]
+    User["User Service"]
+    Inventory["Inventory Service"]
+    Order["Order Service"]
+    Payment["Payment Service"]
+    Notification["Notification Service"]
+    Search["Search Service"]
+    UserDb[("userdb")]
+    InventoryDb[("inventorydb")]
+    OrderDb[("orderdb")]
+    PaymentDb[("paymentdb")]
+    NotificationDb[("notificationdb")]
+    Redis[("Redis")]
+    Kafka[("Kafka / Redpanda")]
+    Elastic[("Elasticsearch")]
+    Logstash["Logstash"]
 
     Client --> Gateway
     Client --> Auth
-    Gateway --> Domain
+    Gateway --> User
+    Gateway --> Inventory
+    Gateway --> Order
+    Gateway --> Payment
+    Gateway --> Notification
+    Gateway --> Search
     Auth --> Gateway
-    Domain --> Platform
-    Config --> Domain
+    Config --> Gateway
     Eureka --> Gateway
 
     User --> UserDb
@@ -81,7 +73,12 @@ flowchart TB
     Notification --> Kafka
     Search --> Kafka
 
-    Domain --> Logstash
+    User --> Logstash
+    Inventory --> Logstash
+    Order --> Logstash
+    Payment --> Logstash
+    Notification --> Logstash
+    Search --> Logstash
     Gateway --> Logstash
     Auth --> Logstash
     Logstash --> Elastic
@@ -91,47 +88,48 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    subgraph Edge["Edge Layer"]
-        Client["External Client"]
-        Gateway["API Gateway"]
-        Auth["Auth Service"]
-    end
-
-    subgraph Platform["Platform Services"]
-        Config["Config Server"]
-        Eureka["Eureka Discovery"]
-    end
-
-    subgraph Domain["Domain Microservices"]
-        User["User"]
-        Order["Order"]
-        Inventory["Inventory"]
-        Payment["Payment"]
-        Notification["Notification"]
-        Search["Search"]
-    end
-
-    subgraph Data["Data Layer"]
-        MySQL["MySQL per service"]
-        Redis["Redis cache"]
-        ES["Elasticsearch"]
-    end
-
-    subgraph Messaging["Async Layer"]
-        Broker["Kafka-compatible broker"]
-        DLT["Dead-letter topics"]
-    end
+    Client["External Client"]
+    Auth["Auth Service"]
+    Gateway["API Gateway"]
+    Config["Config Server"]
+    Eureka["Eureka Discovery"]
+    User["User"]
+    Order["Order"]
+    Inventory["Inventory"]
+    Payment["Payment"]
+    Notification["Notification"]
+    Search["Search"]
+    MySQL["MySQL per service"]
+    Redis["Redis cache"]
+    ES["Elasticsearch"]
+    Broker["Kafka-compatible broker"]
+    DLT["Dead-letter topics"]
 
     Client --> Auth
     Client -->|"Bearer JWT"| Gateway
-    Gateway --> Domain
-    Domain --> MySQL
+    Gateway --> User
+    Gateway --> Order
+    Gateway --> Inventory
+    Gateway --> Payment
+    Gateway --> Notification
+    Gateway --> Search
+    User --> MySQL
+    Order --> MySQL
+    Inventory --> MySQL
+    Payment --> MySQL
+    Notification --> MySQL
     User --> Redis
     Search --> ES
-    Domain --> Broker
+    Order --> Broker
+    Inventory --> Broker
+    Payment --> Broker
+    Notification --> Broker
+    Search --> Broker
     Broker --> DLT
-    Domain -.-> Platform
-    Gateway -.-> Platform
+    Gateway -.-> Eureka
+    Gateway -.-> Config
+    User -.-> Eureka
+    Order -.-> Eureka
 ```
 
 ## Microservice Interaction Flow
@@ -209,22 +207,23 @@ Docker Compose runs all infrastructure and application containers on a local Doc
 ```mermaid
 flowchart TB
     Host["Windows Host"]
-    subgraph Docker["Docker Compose network: camp_default"]
-        Gateway["api-gateway:8080"]
-        Auth["auth-service:8087"]
-        Services["Spring Boot services"]
-        MySQL["5 MySQL containers"]
-        Redis["Redis"]
-        Broker["Redpanda Kafka-compatible broker"]
-        ES["Elasticsearch"]
-        Obs["Optional Logstash/Kibana/Prometheus/Grafana profiles"]
-    end
+    Gateway["api-gateway:8080"]
+    Auth["auth-service:8087"]
+    Services["Spring Boot services"]
+    Eureka["discovery-server:8761"]
+    MySQL["5 MySQL containers"]
+    Redis["Redis"]
+    Broker["Redpanda Kafka broker"]
+    ES["Elasticsearch"]
+    Obs["Optional observability profiles"]
 
-    Host -->|"localhost:8080"| Gateway
-    Host -->|"localhost:8087"| Auth
-    Host -->|"localhost:8761"| Services
-    Host -->|"localhost:19092"| Broker
-    Host -->|"localhost:19200"| ES
+    Host --> Gateway
+    Host --> Auth
+    Host --> Eureka
+    Host --> Broker
+    Host --> ES
+    Gateway --> Services
+    Services --> Eureka
     Services --> MySQL
     Services --> Redis
     Services --> Broker
@@ -256,23 +255,30 @@ Kubernetes manifests are under `k8s/` and deploy into the `camp` namespace.
 flowchart TB
     Client["Client"]
     NodePort["api-gateway Service - NodePort 30080"]
-
-    subgraph K8s["Kubernetes namespace: camp"]
-        GatewayPod["api-gateway Deployment"]
-        AppPods["Domain service Deployments"]
-        InfraPods["MySQL, Redis, Kafka, Elasticsearch Deployments"]
-        ConfigMap["camp-config ConfigMap"]
-        Secret["camp-db-secret Secret"]
-    end
+    GatewayPod["api-gateway Deployment"]
+    UserPod["user-service Deployment"]
+    OrderPod["order-service Deployment"]
+    PaymentPod["payment-service Deployment"]
+    InfraPods["MySQL, Redis, Kafka, Elasticsearch Deployments"]
+    ConfigMap["camp-config ConfigMap"]
+    Secret["camp-db-secret Secret"]
 
     Client --> NodePort
     NodePort --> GatewayPod
-    GatewayPod --> AppPods
-    AppPods --> InfraPods
+    GatewayPod --> UserPod
+    GatewayPod --> OrderPod
+    GatewayPod --> PaymentPod
+    UserPod --> InfraPods
+    OrderPod --> InfraPods
+    PaymentPod --> InfraPods
     ConfigMap --> GatewayPod
-    ConfigMap --> AppPods
+    ConfigMap --> UserPod
+    ConfigMap --> OrderPod
+    ConfigMap --> PaymentPod
     Secret --> InfraPods
-    Secret --> AppPods
+    Secret --> UserPod
+    Secret --> OrderPod
+    Secret --> PaymentPod
 ```
 
 For local Docker Desktop Kubernetes, the application image tag is `camp/<service>:deploy`. For remote clusters, push these images to a registry and update `k8s/03-apps.yml`.
@@ -412,7 +418,7 @@ flowchart LR
     Client -->|"Authorization: Bearer JWT"| Gateway
     Gateway -->|"validated identity / claims"| Services
     Auth --> TokenStore
-    Services -.->|"future mTLS or client credentials"| Services
+    Services -.-> Auth
 ```
 
 Recommended next hardening steps:
