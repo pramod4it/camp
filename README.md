@@ -434,7 +434,7 @@ Recommended next hardening steps:
 API paths are centralized in `common-events`:
 
 ```text
-com.rajcloud.api.ApiResource
+com.cloud.api.ApiResource
 ```
 
 Current version constants:

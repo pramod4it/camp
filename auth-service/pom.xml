@@ -4,24 +4,24 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>com.rajcloud</groupId>
+        <groupId>com.cloud</groupId>
         <artifactId>camp</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
     <artifactId>auth-service</artifactId>
     <dependencies>
         <dependency>
-            <groupId>com.rajcloud</groupId>
+            <groupId>com.cloud</groupId>
             <artifactId>common-events</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.rajcloud</groupId>
+            <groupId>com.cloud</groupId>
             <artifactId>common-security</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.rajcloud</groupId>
+            <groupId>com.cloud</groupId>
             <artifactId>common-observability</artifactId>
             <version>${project.version}</version>
         </dependency>
