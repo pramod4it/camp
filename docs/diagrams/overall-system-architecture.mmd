@@ -1,0 +1,58 @@
+flowchart TB
+    Client["Client / Postman / Swagger UI"]
+    Gateway["API Gateway"]
+    Auth["Auth Service"]
+    Config["Config Server"]
+    Eureka["Discovery Server"]
+    User["User Service"]
+    Inventory["Inventory Service"]
+    Order["Order Service"]
+    Payment["Payment Service"]
+    Notification["Notification Service"]
+    Search["Search Service"]
+    UserDb[("userdb")]
+    InventoryDb[("inventorydb")]
+    OrderDb[("orderdb")]
+    PaymentDb[("paymentdb")]
+    NotificationDb[("notificationdb")]
+    Redis[("Redis")]
+    Kafka[("Kafka / Redpanda")]
+    Elastic[("Elasticsearch")]
+    Logstash["Logstash"]
+
+    Client --> Gateway
+    Client --> Auth
+    Gateway --> User
+    Gateway --> Inventory
+    Gateway --> Order
+    Gateway --> Payment
+    Gateway --> Notification
+    Gateway --> Search
+    Auth --> Gateway
+    Config --> Gateway
+    Eureka --> Gateway
+
+    User --> UserDb
+    User --> Redis
+    Inventory --> InventoryDb
+    Order --> OrderDb
+    Payment --> PaymentDb
+    Notification --> NotificationDb
+    Search --> Elastic
+
+    Order --> User
+    Order --> Kafka
+    Inventory --> Kafka
+    Payment --> Kafka
+    Notification --> Kafka
+    Search --> Kafka
+
+    User --> Logstash
+    Inventory --> Logstash
+    Order --> Logstash
+    Payment --> Logstash
+    Notification --> Logstash
+    Search --> Logstash
+    Gateway --> Logstash
+    Auth --> Logstash
+    Logstash --> Elastic

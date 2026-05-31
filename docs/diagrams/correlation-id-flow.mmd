@@ -1,0 +1,6 @@
+flowchart LR
+    A["Client request"] --> B["Gateway reads or creates X-Correlation-Id"]
+    B --> C["Service receives X-Correlation-Id"]
+    C --> D["Kafka event with correlation header"]
+    D --> E["Consumer puts correlation_id in MDC"]
+    E --> F["Structured JSON log"]

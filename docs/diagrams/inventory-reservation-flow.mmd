@@ -1,0 +1,7 @@
+flowchart TD
+    A["Kafka: OrderCreatedEvent"] --> B["inventory-service"]
+    B --> C[("Load inventory item")]
+    C --> D{"Stock available?"}
+    D -->|"Yes"| E[("Reserve quantity")]
+    E --> F["Publish inventory-reserved"]
+    D -->|"No"| G["Publish inventory-rejected"]

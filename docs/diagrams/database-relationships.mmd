@@ -1,0 +1,66 @@
+erDiagram
+    USERS {
+        BIGINT id PK
+        VARCHAR name
+        VARCHAR email UK
+    }
+
+    INVENTORY_ITEMS {
+        BIGINT product_id PK
+        VARCHAR product_name
+        INT available_quantity
+    }
+
+    ORDERS {
+        BIGINT id PK
+        BIGINT user_id
+        BIGINT product_id
+        INT quantity
+        DECIMAL amount
+        VARCHAR status
+        DATETIME created_at
+    }
+
+    PAYMENTS {
+        BIGINT id PK
+        BIGINT order_id
+        BIGINT user_id
+        DECIMAL amount
+        VARCHAR status
+        DATETIME processed_at
+    }
+
+    NOTIFICATIONS {
+        BIGINT id PK
+        BIGINT order_id
+        BIGINT user_id
+        VARCHAR message
+        DATETIME created_at
+    }
+
+    ORDER_OUTBOX {
+        BIGINT id PK
+        VARCHAR topic
+        VARCHAR event_key
+        VARCHAR event_type
+        TEXT payload
+        BIT published
+        DATETIME created_at
+    }
+
+    PAYMENT_OUTBOX {
+        BIGINT id PK
+        VARCHAR topic
+        VARCHAR event_key
+        VARCHAR event_type
+        TEXT payload
+        BIT published
+        DATETIME created_at
+    }
+
+    USERS ||..o{ ORDERS : "logical user_id"
+    INVENTORY_ITEMS ||..o{ ORDERS : "logical product_id"
+    ORDERS ||..o{ PAYMENTS : "logical order_id"
+    ORDERS ||..o{ NOTIFICATIONS : "logical order_id"
+    ORDERS ||..o{ ORDER_OUTBOX : "emits events"
+    PAYMENTS ||..o{ PAYMENT_OUTBOX : "emits events"

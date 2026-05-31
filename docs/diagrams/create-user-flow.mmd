@@ -1,0 +1,8 @@
+flowchart LR
+    A["Client POST /api/v1/users"] --> B["API Gateway"]
+    B --> C["user-service"]
+    C --> D[("userdb insert")]
+    C --> E[("Redis cache write")]
+    C --> F["User response"]
+    F --> B
+    B --> G["200 OK"]

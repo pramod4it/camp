@@ -1,0 +1,14 @@
+flowchart TD
+    A["Kafka topic: order-created"] --> B["inventory-service tries to reserve stock"]
+    B --> C{"Stock available?"}
+    C -->|"No"| D["Publish inventory-rejected"]
+    D --> E["order-service marks INVENTORY_REJECTED"]
+    C -->|"Yes"| F["Publish inventory-reserved"]
+    F --> G["payment-service processes payment"]
+    G --> H{"Payment successful?"}
+    H -->|"Yes"| I["Publish payment-processed success"]
+    I --> J["order-service marks PAID"]
+    H -->|"No"| K["Publish payment-processed failed"]
+    K --> L["order-service marks PAYMENT_FAILED"]
+    L --> M["Publish inventory-release-requested"]
+    M --> N["inventory-service releases stock"]

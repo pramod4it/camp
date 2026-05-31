@@ -1,0 +1,23 @@
+flowchart TB
+    Host["Windows Host"]
+    Gateway["api-gateway:8080"]
+    Auth["auth-service:8087"]
+    Services["Spring Boot services"]
+    Eureka["discovery-server:8761"]
+    MySQL["5 MySQL containers"]
+    Redis["Redis"]
+    Broker["Redpanda Kafka broker"]
+    ES["Elasticsearch"]
+    Obs["Optional observability profiles"]
+
+    Host --> Gateway
+    Host --> Auth
+    Host --> Eureka
+    Host --> Broker
+    Host --> ES
+    Gateway --> Services
+    Services --> Eureka
+    Services --> MySQL
+    Services --> Redis
+    Services --> Broker
+    Services --> ES

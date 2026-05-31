@@ -1,0 +1,13 @@
+flowchart LR
+    Client["Client"]
+    Auth["auth-service or external IdP - OAuth 2.0 / OIDC"]
+    Gateway["API Gateway - JWT validation + scopes"]
+    Services["Microservices - method-level RBAC"]
+    TokenStore["Refresh token store"]
+
+    Client --> Auth
+    Auth -->|"access token + refresh token"| Client
+    Client -->|"Authorization: Bearer JWT"| Gateway
+    Gateway -->|"validated identity / claims"| Services
+    Auth --> TokenStore
+    Services -.-> Auth

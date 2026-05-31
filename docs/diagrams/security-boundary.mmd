@@ -1,0 +1,12 @@
+flowchart LR
+    Client["Client"]
+    Auth["Auth Service - token issuer"]
+    Gateway["API Gateway - JWT validation + RBAC"]
+    Services["Microservices - receive identity headers"]
+    Datastores["Datastores"]
+
+    Client -->|"OAuth2-style token request"| Auth
+    Auth -->|"access token + refresh token"| Client
+    Client -->|"Authorization: Bearer JWT"| Gateway
+    Gateway -->|"validated identity headers"| Services
+    Services --> Datastores

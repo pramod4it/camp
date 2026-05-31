@@ -1,0 +1,9 @@
+flowchart TD
+    A["Kafka: InventoryReservedEvent"] --> B["payment-service"]
+    B --> C[("paymentdb store payment")]
+    B --> D[("paymentdb store outbox event")]
+    D --> E["Kafka: payment-processed"]
+    E --> F["order-service marks paid or failed"]
+    E --> G["notification-service stores notification"]
+    E --> H["search-service"]
+    H --> I[("Elasticsearch upsert order document")]

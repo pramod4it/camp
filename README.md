@@ -23,114 +23,15 @@
 
 The system is organized as independently deployable Spring Boot services. External clients enter through the API Gateway. Services use Eureka for discovery, Config Server for externalized configuration, MySQL for transactional data, Redis for user-service caching, Kafka-compatible Redpanda/Kafka for asynchronous domain events, and Elasticsearch for search and central log indexing.
 
-```mermaid
-flowchart TB
-    Client["Client / Postman / Swagger UI"]
-    Gateway["API Gateway"]
-    Auth["Auth Service"]
-    Config["Config Server"]
-    Eureka["Discovery Server"]
-    User["User Service"]
-    Inventory["Inventory Service"]
-    Order["Order Service"]
-    Payment["Payment Service"]
-    Notification["Notification Service"]
-    Search["Search Service"]
-    UserDb[("userdb")]
-    InventoryDb[("inventorydb")]
-    OrderDb[("orderdb")]
-    PaymentDb[("paymentdb")]
-    NotificationDb[("notificationdb")]
-    Redis[("Redis")]
-    Kafka[("Kafka / Redpanda")]
-    Elastic[("Elasticsearch")]
-    Logstash["Logstash"]
+![Overall System Architecture](docs/diagrams/overall-system-architecture.svg)
 
-    Client --> Gateway
-    Client --> Auth
-    Gateway --> User
-    Gateway --> Inventory
-    Gateway --> Order
-    Gateway --> Payment
-    Gateway --> Notification
-    Gateway --> Search
-    Auth --> Gateway
-    Config --> Gateway
-    Eureka --> Gateway
-
-    User --> UserDb
-    User --> Redis
-    Inventory --> InventoryDb
-    Order --> OrderDb
-    Payment --> PaymentDb
-    Notification --> NotificationDb
-    Search --> Elastic
-
-    Order --> User
-    Order --> Kafka
-    Inventory --> Kafka
-    Payment --> Kafka
-    Notification --> Kafka
-    Search --> Kafka
-
-    User --> Logstash
-    Inventory --> Logstash
-    Order --> Logstash
-    Payment --> Logstash
-    Notification --> Logstash
-    Search --> Logstash
-    Gateway --> Logstash
-    Auth --> Logstash
-    Logstash --> Elastic
-```
+[Mermaid source](docs/diagrams/overall-system-architecture.mmd)
 
 ## High-Level Architecture
 
-```mermaid
-flowchart LR
-    Client["External Client"]
-    Auth["Auth Service"]
-    Gateway["API Gateway"]
-    Config["Config Server"]
-    Eureka["Eureka Discovery"]
-    User["User"]
-    Order["Order"]
-    Inventory["Inventory"]
-    Payment["Payment"]
-    Notification["Notification"]
-    Search["Search"]
-    MySQL["MySQL per service"]
-    Redis["Redis cache"]
-    ES["Elasticsearch"]
-    Broker["Kafka-compatible broker"]
-    DLT["Dead-letter topics"]
+![High-Level Architecture](docs/diagrams/high-level-architecture.svg)
 
-    Client --> Auth
-    Client -->|"Bearer JWT"| Gateway
-    Gateway --> User
-    Gateway --> Order
-    Gateway --> Inventory
-    Gateway --> Payment
-    Gateway --> Notification
-    Gateway --> Search
-    User --> MySQL
-    Order --> MySQL
-    Inventory --> MySQL
-    Payment --> MySQL
-    Notification --> MySQL
-    User --> Redis
-    Search --> ES
-    Order --> Broker
-    Inventory --> Broker
-    Payment --> Broker
-    Notification --> Broker
-    Search --> Broker
-    Broker --> DLT
-    Gateway -.-> Eureka
-    Gateway -.-> Config
-    User -.-> Eureka
-    Order -.-> Eureka
-```
+[Mermaid source](docs/diagrams/high-level-architecture.mmd)
 
 ## Microservice Interaction Flow
 
@@ -161,42 +62,15 @@ Dead-letter topics use the `.DLT` suffix, for example `order-created.DLT`.
 
 The order workflow uses Saga choreography. There is no central Saga orchestrator. Each service reacts to events and publishes the next event.
 
-```mermaid
-flowchart TD
-    A["Client posts order with Bearer JWT"] --> B["API Gateway routes to order-service"]
-    B --> C["order-service validates user by OpenFeign with service JWT"]
-    C --> D["order-service saves PENDING order"]
-    D --> E["order-service saves outbox event"]
-    E --> F["Kafka topic: order-created"]
-    F --> G["inventory-service reserves stock"]
-    F --> H["search-service indexes order draft"]
-    G --> I["Kafka topic: inventory-reserved"]
-    I --> J["payment-service processes payment"]
-    I --> K["order-service records inventory reservation"]
-    J --> L["Kafka topic: payment-processed"]
-    L --> M["order-service marks PAID or PAYMENT_FAILED"]
-    L --> N["notification-service stores notification"]
-    L --> O["search-service updates Elasticsearch orders index"]
-```
+![Saga Choreography Workflow](docs/diagrams/saga-choreography-workflow.svg)
+
+[Mermaid source](docs/diagrams/saga-choreography-workflow.mmd)
 
 Compensation flow:
 
-```mermaid
-flowchart TD
-    A["Kafka topic: order-created"] --> B["inventory-service tries to reserve stock"]
-    B --> C{"Stock available?"}
-    C -->|"No"| D["Publish inventory-rejected"]
-    D --> E["order-service marks INVENTORY_REJECTED"]
-    C -->|"Yes"| F["Publish inventory-reserved"]
-    F --> G["payment-service processes payment"]
-    G --> H{"Payment successful?"}
-    H -->|"Yes"| I["Publish payment-processed success"]
-    I --> J["order-service marks PAID"]
-    H -->|"No"| K["Publish payment-processed failed"]
-    K --> L["order-service marks PAYMENT_FAILED"]
-    L --> M["Publish inventory-release-requested"]
-    M --> N["inventory-service releases stock"]
-```
+![Saga Compensation Flow](docs/diagrams/saga-compensation-flow.svg)
+
+[Mermaid source](docs/diagrams/saga-compensation-flow.mmd)
 
 ## Deployment Architecture
 
@@ -204,31 +78,9 @@ flowchart TD
 
 Docker Compose runs all infrastructure and application containers on a local Docker network. Host ports are adjusted to avoid conflicts with other local projects.
 
-```mermaid
-flowchart TB
-    Host["Windows Host"]
-    Gateway["api-gateway:8080"]
-    Auth["auth-service:8087"]
-    Services["Spring Boot services"]
-    Eureka["discovery-server:8761"]
-    MySQL["5 MySQL containers"]
-    Redis["Redis"]
-    Broker["Redpanda Kafka broker"]
-    ES["Elasticsearch"]
-    Obs["Optional observability profiles"]
+![Docker Compose Deployment](docs/diagrams/docker-compose-deployment.svg)
 
-    Host --> Gateway
-    Host --> Auth
-    Host --> Eureka
-    Host --> Broker
-    Host --> ES
-    Gateway --> Services
-    Services --> Eureka
-    Services --> MySQL
-    Services --> Redis
-    Services --> Broker
-    Services --> ES
-```
+[Mermaid source](docs/diagrams/docker-compose-deployment.mmd)
 
 Important Docker host ports:
 
@@ -251,35 +103,9 @@ Important Docker host ports:
 
 Kubernetes manifests are under `k8s/` and deploy into the `camp` namespace.
 
-```mermaid
-flowchart TB
-    Client["Client"]
-    NodePort["api-gateway Service - NodePort 30080"]
-    GatewayPod["api-gateway Deployment"]
-    UserPod["user-service Deployment"]
-    OrderPod["order-service Deployment"]
-    PaymentPod["payment-service Deployment"]
-    InfraPods["MySQL, Redis, Kafka, Elasticsearch Deployments"]
-    ConfigMap["camp-config ConfigMap"]
-    Secret["camp-db-secret Secret"]
+![Kubernetes Deployment](docs/diagrams/kubernetes-deployment.svg)
 
-    Client --> NodePort
-    NodePort --> GatewayPod
-    GatewayPod --> UserPod
-    GatewayPod --> OrderPod
-    GatewayPod --> PaymentPod
-    UserPod --> InfraPods
-    OrderPod --> InfraPods
-    PaymentPod --> InfraPods
-    ConfigMap --> GatewayPod
-    ConfigMap --> UserPod
-    ConfigMap --> OrderPod
-    ConfigMap --> PaymentPod
-    Secret --> InfraPods
-    Secret --> UserPod
-    Secret --> OrderPod
-    Secret --> PaymentPod
-```
+[Mermaid source](docs/diagrams/kubernetes-deployment.mmd)
 
 For local Docker Desktop Kubernetes, the application image tag is `camp/<service>:deploy`. For remote clusters, push these images to a registry and update `k8s/03-apps.yml`.
 
@@ -287,74 +113,9 @@ For local Docker Desktop Kubernetes, the application image tag is `camp/<service
 
 Each microservice owns its database. Cross-service references such as `user_id`, `order_id`, and `product_id` are logical references, not cross-database foreign keys.
 
-```mermaid
-erDiagram
-    USERS {
-        BIGINT id PK
-        VARCHAR name
-        VARCHAR email UK
-    }
+![Database Relationships](docs/diagrams/database-relationships.svg)
 
-    INVENTORY_ITEMS {
-        BIGINT product_id PK
-        VARCHAR product_name
-        INT available_quantity
-    }
-
-    ORDERS {
-        BIGINT id PK
-        BIGINT user_id
-        BIGINT product_id
-        INT quantity
-        DECIMAL amount
-        VARCHAR status
-        DATETIME created_at
-    }
-
-    PAYMENTS {
-        BIGINT id PK
-        BIGINT order_id
-        BIGINT user_id
-        DECIMAL amount
-        VARCHAR status
-        DATETIME processed_at
-    }
-
-    NOTIFICATIONS {
-        BIGINT id PK
-        BIGINT order_id
-        BIGINT user_id
-        VARCHAR message
-        DATETIME created_at
-    }
-
-    ORDER_OUTBOX {
-        BIGINT id PK
-        VARCHAR topic
-        VARCHAR event_key
-        VARCHAR event_type
-        TEXT payload
-        BIT published
-        DATETIME created_at
-    }
-
-    PAYMENT_OUTBOX {
-        BIGINT id PK
-        VARCHAR topic
-        VARCHAR event_key
-        VARCHAR event_type
-        TEXT payload
-        BIT published
-        DATETIME created_at
-    }
-
-    USERS ||..o{ ORDERS : "logical user_id"
-    INVENTORY_ITEMS ||..o{ ORDERS : "logical product_id"
-    ORDERS ||..o{ PAYMENTS : "logical order_id"
-    ORDERS ||..o{ NOTIFICATIONS : "logical order_id"
-    ORDERS ||..o{ ORDER_OUTBOX : "emits events"
-    PAYMENTS ||..o{ PAYMENT_OUTBOX : "emits events"
-```
+[Mermaid source](docs/diagrams/database-relationships.mmd)
 
 SQL scripts are organized by database under `D:\camp\sql`:
 
@@ -388,38 +149,15 @@ The project now implements a lightweight OAuth2-style security model suitable fo
 
 ### Current Security Boundary
 
-```mermaid
-flowchart LR
-    Client["Client"]
-    Auth["Auth Service - token issuer"]
-    Gateway["API Gateway - JWT validation + RBAC"]
-    Services["Microservices - receive identity headers"]
-    Datastores["Datastores"]
+![Security Boundary](docs/diagrams/security-boundary.svg)
 
-    Client -->|"OAuth2-style token request"| Auth
-    Auth -->|"access token + refresh token"| Client
-    Client -->|"Authorization: Bearer JWT"| Gateway
-    Gateway -->|"validated identity headers"| Services
-    Services --> Datastores
-```
+[Mermaid source](docs/diagrams/security-boundary.mmd)
 
 ### Recommended Future Security Hardening
 
-```mermaid
-flowchart LR
-    Client["Client"]
-    Auth["auth-service or external IdP - OAuth 2.0 / OIDC"]
-    Gateway["API Gateway - JWT validation + scopes"]
-    Services["Microservices - method-level RBAC"]
-    TokenStore["Refresh token store"]
+![Future Security Hardening](docs/diagrams/future-security-hardening.svg)
 
-    Client --> Auth
-    Auth -->|"access token + refresh token"| Client
-    Client -->|"Authorization: Bearer JWT"| Gateway
-    Gateway -->|"validated identity / claims"| Services
-    Auth --> TokenStore
-    Services -.-> Auth
-```
+[Mermaid source](docs/diagrams/future-security-hardening.mmd)
 
 Recommended next hardening steps:
 
@@ -716,69 +454,33 @@ D:\camp\docs\observability-logging.md
 
 ### Create User
 
-```mermaid
-flowchart LR
-    A["Client POST /api/v1/users"] --> B["API Gateway"]
-    B --> C["user-service"]
-    C --> D[("userdb insert")]
-    C --> E[("Redis cache write")]
-    C --> F["User response"]
-    F --> B
-    B --> G["200 OK"]
-```
+![Create User Flow](docs/diagrams/create-user-flow.svg)
+
+[Mermaid source](docs/diagrams/create-user-flow.mmd)
 
 ### Create Order
 
-```mermaid
-flowchart LR
-    A["Client POST /api/v1/orders"] --> B["API Gateway"]
-    B --> C["order-service"]
-    C --> D["user-service validates user"]
-    D --> C
-    C --> E[("orderdb insert order")]
-    C --> F[("orderdb insert outbox")]
-    F --> G["Kafka topic: order-created"]
-    C --> H["Order response"]
-    H --> B
-    B --> I["200 OK"]
-```
+![Create Order Flow](docs/diagrams/create-order-flow.svg)
+
+[Mermaid source](docs/diagrams/create-order-flow.mmd)
 
 ### Inventory Reservation
 
-```mermaid
-flowchart TD
-    A["Kafka: OrderCreatedEvent"] --> B["inventory-service"]
-    B --> C[("Load inventory item")]
-    C --> D{"Stock available?"}
-    D -->|"Yes"| E[("Reserve quantity")]
-    E --> F["Publish inventory-reserved"]
-    D -->|"No"| G["Publish inventory-rejected"]
-```
+![Inventory Reservation Flow](docs/diagrams/inventory-reservation-flow.svg)
+
+[Mermaid source](docs/diagrams/inventory-reservation-flow.mmd)
 
 ### Payment And Notification
 
-```mermaid
-flowchart TD
-    A["Kafka: InventoryReservedEvent"] --> B["payment-service"]
-    B --> C[("paymentdb store payment")]
-    B --> D[("paymentdb store outbox event")]
-    D --> E["Kafka: payment-processed"]
-    E --> F["order-service marks paid or failed"]
-    E --> G["notification-service stores notification"]
-    E --> H["search-service"]
-    H --> I[("Elasticsearch upsert order document")]
-```
+![Payment And Notification Flow](docs/diagrams/payment-notification-flow.svg)
+
+[Mermaid source](docs/diagrams/payment-notification-flow.mmd)
 
 ### Correlation ID Propagation
 
-```mermaid
-flowchart LR
-    A["Client request"] --> B["Gateway reads or creates X-Correlation-Id"]
-    B --> C["Service receives X-Correlation-Id"]
-    C --> D["Kafka event with correlation header"]
-    D --> E["Consumer puts correlation_id in MDC"]
-    E --> F["Structured JSON log"]
-```
+![Correlation ID Propagation](docs/diagrams/correlation-id-flow.svg)
+
+[Mermaid source](docs/diagrams/correlation-id-flow.mmd)
 
 ## Important Notes
 

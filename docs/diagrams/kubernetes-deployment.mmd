@@ -1,0 +1,27 @@
+flowchart TB
+    Client["Client"]
+    NodePort["api-gateway Service - NodePort 30080"]
+    GatewayPod["api-gateway Deployment"]
+    UserPod["user-service Deployment"]
+    OrderPod["order-service Deployment"]
+    PaymentPod["payment-service Deployment"]
+    InfraPods["MySQL, Redis, Kafka, Elasticsearch Deployments"]
+    ConfigMap["camp-config ConfigMap"]
+    Secret["camp-db-secret Secret"]
+
+    Client --> NodePort
+    NodePort --> GatewayPod
+    GatewayPod --> UserPod
+    GatewayPod --> OrderPod
+    GatewayPod --> PaymentPod
+    UserPod --> InfraPods
+    OrderPod --> InfraPods
+    PaymentPod --> InfraPods
+    ConfigMap --> GatewayPod
+    ConfigMap --> UserPod
+    ConfigMap --> OrderPod
+    ConfigMap --> PaymentPod
+    Secret --> InfraPods
+    Secret --> UserPod
+    Secret --> OrderPod
+    Secret --> PaymentPod

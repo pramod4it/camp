@@ -1,0 +1,11 @@
+flowchart LR
+    A["Client POST /api/v1/orders"] --> B["API Gateway"]
+    B --> C["order-service"]
+    C --> D["user-service validates user"]
+    D --> C
+    C --> E[("orderdb insert order")]
+    C --> F[("orderdb insert outbox")]
+    F --> G["Kafka topic: order-created"]
+    C --> H["Order response"]
+    H --> B
+    B --> I["200 OK"]

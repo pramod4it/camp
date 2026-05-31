@@ -1,0 +1,43 @@
+flowchart LR
+    Client["External Client"]
+    Auth["Auth Service"]
+    Gateway["API Gateway"]
+    Config["Config Server"]
+    Eureka["Eureka Discovery"]
+    User["User"]
+    Order["Order"]
+    Inventory["Inventory"]
+    Payment["Payment"]
+    Notification["Notification"]
+    Search["Search"]
+    MySQL["MySQL per service"]
+    Redis["Redis cache"]
+    ES["Elasticsearch"]
+    Broker["Kafka-compatible broker"]
+    DLT["Dead-letter topics"]
+
+    Client --> Auth
+    Client -->|"Bearer JWT"| Gateway
+    Gateway --> User
+    Gateway --> Order
+    Gateway --> Inventory
+    Gateway --> Payment
+    Gateway --> Notification
+    Gateway --> Search
+    User --> MySQL
+    Order --> MySQL
+    Inventory --> MySQL
+    Payment --> MySQL
+    Notification --> MySQL
+    User --> Redis
+    Search --> ES
+    Order --> Broker
+    Inventory --> Broker
+    Payment --> Broker
+    Notification --> Broker
+    Search --> Broker
+    Broker --> DLT
+    Gateway -.-> Eureka
+    Gateway -.-> Config
+    User -.-> Eureka
+    Order -.-> Eureka
