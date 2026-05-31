@@ -164,63 +164,40 @@ Dead-letter topics use the `.DLT` suffix, for example `order-created.DLT`.
 The order workflow uses Saga choreography. There is no central Saga orchestrator. Each service reacts to events and publishes the next event.
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant Client
-    participant Gateway
-    participant Order
-    participant User
-    participant Kafka
-    participant Inventory
-    participant Payment
-    participant Notification
-    participant Search
-
-    Client->>Gateway: POST /api/v1/orders with Bearer JWT
-    Gateway->>Order: Forward create order request
-    Order->>User: Validate user by HTTP/OpenFeign with service JWT
-    User-->>Order: User exists
-    Order->>Order: Save order as PENDING
-    Order->>Order: Save outbox event
-    Order->>Kafka: Publish OrderCreatedEvent
-    Kafka-->>Inventory: order-created
-    Kafka-->>Search: order-created
-    Inventory->>Inventory: Reserve stock
-    Inventory->>Kafka: Publish InventoryReservedEvent
-    Kafka-->>Payment: inventory-reserved
-    Kafka-->>Order: inventory-reserved
-    Payment->>Payment: Process payment
-    Payment->>Kafka: Publish PaymentProcessedEvent
-    Kafka-->>Order: payment-processed
-    Kafka-->>Notification: payment-processed
-    Kafka-->>Search: payment-processed
-    Order->>Order: Mark order PAID or PAYMENT_FAILED
-    Notification->>Notification: Store notification
-    Search->>Search: Update Elasticsearch orders index
+flowchart TD
+    A["Client posts order with Bearer JWT"] --> B["API Gateway routes to order-service"]
+    B --> C["order-service validates user by OpenFeign with service JWT"]
+    C --> D["order-service saves PENDING order"]
+    D --> E["order-service saves outbox event"]
+    E --> F["Kafka topic: order-created"]
+    F --> G["inventory-service reserves stock"]
+    F --> H["search-service indexes order draft"]
+    G --> I["Kafka topic: inventory-reserved"]
+    I --> J["payment-service processes payment"]
+    I --> K["order-service records inventory reservation"]
+    J --> L["Kafka topic: payment-processed"]
+    L --> M["order-service marks PAID or PAYMENT_FAILED"]
+    L --> N["notification-service stores notification"]
+    L --> O["search-service updates Elasticsearch orders index"]
 ```
 
 Compensation flow:
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant Kafka
-    participant Inventory
-    participant Order
-
-    Kafka-->>Inventory: order-created
-    Inventory->>Inventory: Try reserve stock
-    alt Insufficient stock
-        Inventory->>Kafka: Publish InventoryRejectedEvent
-        Kafka-->>Order: inventory-rejected
-        Order->>Order: Mark INVENTORY_REJECTED
-    else Payment failed after reservation
-        Kafka-->>Order: payment-processed with failed status
-        Order->>Order: Mark PAYMENT_FAILED
-        Order->>Kafka: Publish InventoryReleaseRequestedEvent
-        Kafka-->>Inventory: inventory-release-requested
-        Inventory->>Inventory: Release stock
-    end
+flowchart TD
+    A["Kafka topic: order-created"] --> B["inventory-service tries to reserve stock"]
+    B --> C{"Stock available?"}
+    C -->|"No"| D["Publish inventory-rejected"]
+    D --> E["order-service marks INVENTORY_REJECTED"]
+    C -->|"Yes"| F["Publish inventory-reserved"]
+    F --> G["payment-service processes payment"]
+    G --> H{"Payment successful?"}
+    H -->|"Yes"| I["Publish payment-processed success"]
+    I --> J["order-service marks PAID"]
+    H -->|"No"| K["Publish payment-processed failed"]
+    K --> L["order-service marks PAYMENT_FAILED"]
+    L --> M["Publish inventory-release-requested"]
+    M --> N["inventory-service releases stock"]
 ```
 
 ## Deployment Architecture
@@ -734,108 +711,67 @@ D:\camp\docs\observability-logging.md
 ### Create User
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant Client
-    participant Gateway
-    participant UserService
-    participant Redis
-    participant UserDb
-
-    Client->>Gateway: POST /api/v1/users
-    Gateway->>UserService: Forward request
-    UserService->>UserDb: Insert user
-    UserService->>Redis: Cache user data
-    UserService-->>Gateway: User response
-    Gateway-->>Client: 200 OK
+flowchart LR
+    A["Client POST /api/v1/users"] --> B["API Gateway"]
+    B --> C["user-service"]
+    C --> D[("userdb insert")]
+    C --> E[("Redis cache write")]
+    C --> F["User response"]
+    F --> B
+    B --> G["200 OK"]
 ```
 
 ### Create Order
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant Client
-    participant Gateway
-    participant OrderService
-    participant UserService
-    participant OrderDb
-    participant Kafka
-
-    Client->>Gateway: POST /api/v1/orders
-    Gateway->>OrderService: Forward request
-    OrderService->>UserService: Validate user
-    UserService-->>OrderService: User found
-    OrderService->>OrderDb: Insert order
-    OrderService->>OrderDb: Insert outbox event
-    OrderService->>Kafka: Publish order-created
-    OrderService-->>Gateway: Order response
-    Gateway-->>Client: 200 OK
+flowchart LR
+    A["Client POST /api/v1/orders"] --> B["API Gateway"]
+    B --> C["order-service"]
+    C --> D["user-service validates user"]
+    D --> C
+    C --> E[("orderdb insert order")]
+    C --> F[("orderdb insert outbox")]
+    F --> G["Kafka topic: order-created"]
+    C --> H["Order response"]
+    H --> B
+    B --> I["200 OK"]
 ```
 
 ### Inventory Reservation
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant Kafka
-    participant InventoryService
-    participant InventoryDb
-
-    Kafka-->>InventoryService: OrderCreatedEvent
-    InventoryService->>InventoryDb: Load inventory item
-    InventoryService->>InventoryDb: Reserve quantity if available
-    alt Stock available
-        InventoryService->>Kafka: Publish inventory-reserved
-    else Stock unavailable
-        InventoryService->>Kafka: Publish inventory-rejected
-    end
+flowchart TD
+    A["Kafka: OrderCreatedEvent"] --> B["inventory-service"]
+    B --> C[("Load inventory item")]
+    C --> D{"Stock available?"}
+    D -->|"Yes"| E[("Reserve quantity")]
+    E --> F["Publish inventory-reserved"]
+    D -->|"No"| G["Publish inventory-rejected"]
 ```
 
 ### Payment And Notification
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant Kafka
-    participant PaymentService
-    participant PaymentDb
-    participant OrderService
-    participant NotificationService
-    participant SearchService
-    participant Elasticsearch
-
-    Kafka-->>PaymentService: InventoryReservedEvent
-    PaymentService->>PaymentDb: Store payment
-    PaymentService->>PaymentDb: Store outbox event
-    PaymentService->>Kafka: Publish payment-processed
-    Kafka-->>OrderService: PaymentProcessedEvent
-    Kafka-->>NotificationService: PaymentProcessedEvent
-    Kafka-->>SearchService: PaymentProcessedEvent
-    OrderService->>OrderService: Mark order paid or failed
-    NotificationService->>NotificationService: Store notification
-    SearchService->>Elasticsearch: Upsert order document
+flowchart TD
+    A["Kafka: InventoryReservedEvent"] --> B["payment-service"]
+    B --> C[("paymentdb store payment")]
+    B --> D[("paymentdb store outbox event")]
+    D --> E["Kafka: payment-processed"]
+    E --> F["order-service marks paid or failed"]
+    E --> G["notification-service stores notification"]
+    E --> H["search-service"]
+    H --> I[("Elasticsearch upsert order document")]
 ```
 
 ### Correlation ID Propagation
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant Client
-    participant Gateway
-    participant Service
-    participant Kafka
-    participant Consumer
-    participant Logs
-
-    Client->>Gateway: Request with or without X-Correlation-Id
-    Gateway->>Gateway: Use existing ID or generate UUID
-    Gateway->>Service: Forward X-Correlation-Id
-    Service->>Kafka: Publish event with correlation header
-    Kafka-->>Consumer: Deliver event
-    Consumer->>Consumer: Put correlation_id in MDC
-    Consumer->>Logs: Write structured JSON log
+flowchart LR
+    A["Client request"] --> B["Gateway reads or creates X-Correlation-Id"]
+    B --> C["Service receives X-Correlation-Id"]
+    C --> D["Kafka event with correlation header"]
+    D --> E["Consumer puts correlation_id in MDC"]
+    E --> F["Structured JSON log"]
 ```
 
 ## Important Notes
